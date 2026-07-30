@@ -42,8 +42,12 @@ ALB access logs are written to a dedicated S3 bucket. EC2 instances have no publ
 
 Two workflows, both authenticating to AWS via OIDC (`aws-actions/configure-aws-credentials` assuming an IAM role — no static AWS credentials stored in the repo):
 
-- **`plan.yml`** — runs on every PR targeting `main`. Checks formatting (`terraform fmt -check`), runs `terraform validate`, runs `terraform plan`, and posts the plan output as a comment on the PR.
+- **`plan.yml`** — runs on every PR targeting `main`. Checks formatting (`terraform fmt -check`), runs `terraform validate`, runs a **Checkov IaC security scan** (`bridgecrewio/checkov-action`, soft-fail so it reports without blocking the PR), runs `terraform plan`, and posts the plan output as a comment on the PR.
 - **`apply.yml`** — runs on every push to `main`. Runs `terraform init` and `terraform apply -auto-approve`, then prints the outputs.
+
+- ### IaC scanning (Checkov)
+
+[Checkov](https://www.checkov.io/) scans the Terraform code on every PR for misconfigurations (e.g. unencrypted resources, overly permissive security groups, missing logging) and reports findings directly in the Actions run. It's currently set to `soft_fail: true`, so it surfaces issues without failing the pipeline.
 
 This gives a standard review flow: open a PR → see the plan in the PR comments → merge → infra applies automatically.
 
