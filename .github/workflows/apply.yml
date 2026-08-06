@@ -3,14 +3,23 @@ name: Terraform Apply
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to apply (manual runs only — push-to-main always applies staging)"
+        type: choice
+        options: [staging, prod]
+        default: staging
 
 permissions:
   id-token: write
   contents: read
 
 jobs:
-  apply:
+  apply-staging:
+    if: github.event_name == 'push' || github.event.inputs.environment == 'staging'
     runs-on: ubuntu-latest
+    environment: staging
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -27,10 +36,48 @@ jobs:
           terraform_version: 1.9.0
 
       - name: Terraform Init
+        working-directory: environments/staging
         run: terraform init
 
       - name: Terraform Apply
+        working-directory: environments/staging
         run: terraform apply -auto-approve
 
       - name: Show outputs
+        working-directory: environments/staging
+        run: terraform output
+
+  # Prod never applies automatically on push — only via a manual
+  # workflow_dispatch with environment=prod. Add required reviewers to
+  # the "prod" GitHub Environment (repo Settings > Environments) for
+  # an approval gate before this job runs.
+  apply-prod:
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'prod'
+    runs-on: ubuntu-latest
+    environment: prod
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::183088117150:role/GitHubAction-AssumeRole
+          aws-region: ap-south-1
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.0
+
+      - name: Terraform Init
+        working-directory: environments/prod
+        run: terraform init
+
+      - name: Terraform Apply
+        working-directory: environments/prod
+        run: terraform apply -auto-approve
+
+      - name: Show outputs
+        working-directory: environments/prod
         run: terraform output

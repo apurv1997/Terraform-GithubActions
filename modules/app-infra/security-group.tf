@@ -1,5 +1,5 @@
 resource "aws_security_group" "alb" {
-  name        = "alb-sg"
+  name        = coalesce(var.alb_sg_name, "${var.name_prefix}-alb-sg")
   description = "Allow HTTP from the internet"
   vpc_id      = aws_vpc.main.id
 
@@ -15,11 +15,11 @@ resource "aws_security_group" "alb" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
-  tags = { Name = "alb-sg" }
+  tags = { Name = "${var.name_prefix}-alb-sg" }
 }
 
 resource "aws_security_group" "ec2" {
-  name        = "ec2-sg"
+  name        = coalesce(var.ec2_sg_name, "${var.name_prefix}-ec2-sg")
   description = "Allow traffic only from the ALB"
   vpc_id      = aws_vpc.main.id
 
@@ -35,5 +35,5 @@ resource "aws_security_group" "ec2" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
-  tags = { Name = "ec2-sg" }
+  tags = { Name = "${var.name_prefix}-ec2-sg" }
 }

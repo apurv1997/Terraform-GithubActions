@@ -1,11 +1,11 @@
 resource "aws_lb" "app" {
-  name               = "learning-alb"
+  name               = coalesce(var.alb_name, "${var.name_prefix}-alb")
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.alb.id]
   subnets            = aws_subnet.public[*].id
 
-  enable_deletion_protection = true
+  enable_deletion_protection = var.enable_deletion_protection
 
   access_logs {
     bucket  = aws_s3_bucket.alb_logs.id
@@ -13,11 +13,11 @@ resource "aws_lb" "app" {
     enabled = true
   }
 
-  tags = { Name = "learning-alb" }
+  tags = { Name = "${var.name_prefix}-alb" }
 }
 
 resource "aws_lb_target_group" "app" {
-  name     = "learning-tg"
+  name     = coalesce(var.target_group_name, "${var.name_prefix}-tg")
   port     = 80
   protocol = "HTTP"
   vpc_id   = aws_vpc.main.id

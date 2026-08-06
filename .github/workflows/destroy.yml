@@ -3,6 +3,11 @@ name: Terraform Destroy
 on:
   workflow_dispatch:
     inputs:
+      environment:
+        description: "Environment to destroy"
+        type: choice
+        options: [staging, prod]
+        default: staging
       confirm:
         description: 'Type "destroy" to confirm you want to destroy all infrastructure'
         required: true
@@ -14,6 +19,7 @@ permissions:
 jobs:
   destroy:
     runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
     steps:
       - name: Confirm destroy
         run: |
@@ -37,9 +43,11 @@ jobs:
           terraform_version: 1.9.0
 
       - name: Terraform Init
+        working-directory: environments/${{ github.event.inputs.environment }}
         run: terraform init
 
       - name: Disable termination/deletion protection
+        working-directory: environments/${{ github.event.inputs.environment }}
         run: |
           set -euo pipefail
           terraform state pull > tfstate.json
@@ -76,4 +84,5 @@ jobs:
           rm -f tfstate.json
 
       - name: Terraform Destroy
+        working-directory: environments/${{ github.event.inputs.environment }}
         run: terraform destroy -auto-approve
