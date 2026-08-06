@@ -1,8 +1,8 @@
 data "aws_caller_identity" "current" {}
 
 resource "aws_s3_bucket" "alb_logs" {
-  bucket = "learning-alb-access-logs-${data.aws_caller_identity.current.account_id}"
-  tags   = { Name = "alb-access-logs" }
+  bucket = coalesce(var.s3_bucket_name, "${var.name_prefix}-alb-access-logs-${data.aws_caller_identity.current.account_id}")
+  tags   = { Name = "${var.name_prefix}-alb-access-logs" }
 }
 
 resource "aws_s3_bucket_server_side_encryption_configuration" "alb_logs" {

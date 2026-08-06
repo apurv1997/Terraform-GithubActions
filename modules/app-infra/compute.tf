@@ -15,6 +15,20 @@ resource "aws_instance" "app" {
   vpc_security_group_ids = [aws_security_group.ec2.id]
   iam_instance_profile   = aws_iam_instance_profile.ec2_ssm.name
 
+  monitoring    = true
+  ebs_optimized = true
+
+  # Require IMDSv2
+  metadata_options {
+    http_endpoint = "enabled"
+    http_tokens   = "required"
+  }
+
+  #Encrypted root EBS volume for the EC2 instance
+  root_block_device {
+    encrypted = true
+  }
+
   user_data = <<-EOF
     #!/bin/bash
     dnf install -y nginx
@@ -23,5 +37,5 @@ resource "aws_instance" "app" {
     echo "Hello from $(hostname -f)" > /usr/share/nginx/html/index.html
   EOF
 
-  tags = { Name = "app-instance-${count.index + 1}" }
+  tags = { Name = "${var.name_prefix}-app-instance-${count.index + 1}" }
 }
