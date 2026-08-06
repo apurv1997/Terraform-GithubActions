@@ -3,6 +3,7 @@ name: Terraform Plan
 on:
   pull_request:
     branches: [main]
+  workflow_dispatch: {}
 
 permissions:
   id-token: write
@@ -54,6 +55,7 @@ jobs:
         run: terraform plan -no-color -out=tfplan
 
       - name: Post plan to PR
+        if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
           script: |
