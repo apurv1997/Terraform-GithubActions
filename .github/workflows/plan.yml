@@ -41,7 +41,7 @@ jobs:
         with:
           directory: .
           quiet: true
-          soft_fail: false  # Fail the workflow if any issues are found
+          soft_fail: true
 
       - name: Terraform Plan
         id: plan

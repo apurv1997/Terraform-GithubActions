@@ -1,0 +1,79 @@
+name: Terraform Destroy
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "destroy" to confirm you want to destroy all infrastructure'
+        required: true
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  destroy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Confirm destroy
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "destroy" ]; then
+            echo "Confirmation input must be exactly 'destroy'. Aborting."
+            exit 1
+          fi
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::183088117150:role/GitHubAction-AssumeRole
+          aws-region: ap-south-1
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.0
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Disable termination/deletion protection
+        run: |
+          set -euo pipefail
+          terraform state pull > tfstate.json
+
+          echo "Checking load balancers for deletion protection..."
+          for lb_arn in $(jq -r '.resources[]? | select(.type=="aws_lb") | .instances[].attributes.arn' tfstate.json); do
+            protected=$(aws elbv2 describe-load-balancer-attributes \
+              --load-balancer-arn "$lb_arn" \
+              --query "Attributes[?Key=='deletion_protection.enabled'].Value | [0]" \
+              --output text)
+            if [ "$protected" = "True" ]; then
+              echo "Disabling deletion protection on $lb_arn"
+              aws elbv2 modify-load-balancer-attributes \
+                --load-balancer-arn "$lb_arn" \
+                --attributes Key=deletion_protection.enabled,Value=false
+            fi
+          done
+
+          echo "Checking EC2 instances for termination protection..."
+          for instance_id in $(jq -r '.resources[]? | select(.type=="aws_instance") | .instances[].attributes.id' tfstate.json); do
+            protected=$(aws ec2 describe-instance-attribute \
+              --instance-id "$instance_id" \
+              --attribute disableApiTermination \
+              --query "DisableApiTermination.Value" \
+              --output text)
+            if [ "$protected" = "True" ]; then
+              echo "Disabling termination protection on $instance_id"
+              aws ec2 modify-instance-attribute \
+                --instance-id "$instance_id" \
+                --no-disable-api-termination
+            fi
+          done
+
+          rm -f tfstate.json
+
+      - name: Terraform Destroy
+        run: terraform destroy -auto-approve
