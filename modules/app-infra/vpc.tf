@@ -43,6 +43,11 @@ resource "aws_subnet" "private" {
 resource "aws_eip" "nat" {
   domain = "vpc"
   tags   = { Name = "${var.name_prefix}-nat-eip" }
+
+  # Forces the EIP to release before the IGW is detached on destroy —
+  # otherwise AWS rejects the IGW detach with a DependencyViolation
+  # because the EIP is still mapped to the VPC.
+  depends_on = [aws_internet_gateway.igw]
 }
 
 # Single NAT gateway (not one per AZ) — the cost-conscious choice we
